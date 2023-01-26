@@ -33,8 +33,8 @@ python3 run.py
 To vary the search space, edit the node layer sizes and the candidate activation functions in the  ```parameters.yaml``` file. Defaults are mentioned below:
 
 ```yaml
-nodes = [8,16,32,64,128,256,512]
-act_funcs = ['sigmoid','tanh','relu','elu']
+nodes: [8,16,32,64,128,256,512]
+act_funcs: ['sigmoid','tanh','relu','elu']
 ```
 
 To change the NAS/controller/mlp training parameters, open the ```parameters.yaml``` file and edit. defaults mentioned below.
