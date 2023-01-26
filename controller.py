@@ -4,30 +4,23 @@ from keras import optimizers
 from keras.layers import Dense, LSTM
 from keras.models import Model
 from keras.engine.input_layer import Input
-from keras.preprocessing.sequence import pad_sequences
+from keras.utils.data_utils import pad_sequences
 
 from mlp_generator import MLPSearchSpace
 
-from CONSTANTS import *
-
-
 class Controller(MLPSearchSpace):
-
-    def __init__(self):
-
-        self.max_len = MAX_ARCHITECTURE_LENGTH
-        self.controller_lstm_dim = CONTROLLER_LSTM_DIM
-        self.controller_optimizer = CONTROLLER_OPTIMIZER
-        self.controller_lr = CONTROLLER_LEARNING_RATE
-        self.controller_decay = CONTROLLER_DECAY
-        self.controller_momentum = CONTROLLER_MOMENTUM
-        self.use_predictor = CONTROLLER_USE_PREDICTOR
-
+    def __init__(self, conf):
+        self.max_len = conf.MAX_ARCHITECTURE_LENGTH
+        self.controller_lstm_dim = conf.CONTROLLER_LSTM_DIM
+        self.controller_optimizer = conf.CONTROLLER_OPTIMIZER
+        self.controller_lr = conf.CONTROLLER_LEARNING_RATE
+        self.controller_decay = conf.CONTROLLER_DECAY
+        self.controller_momentum = conf.CONTROLLER_MOMENTUM
+        self.use_predictor = conf.CONTROLLER_USE_PREDICTOR
         self.controller_weights = 'LOGS/controller_weights.h5'
-
         self.seq_data = []
 
-        super().__init__(TARGET_CLASSES)
+        super().__init__(conf.TARGET_CLASSES, conf.nodes, conf.activation_functions)
 
         self.controller_classes = len(self.vocab) + 1
 
@@ -90,7 +83,8 @@ class Controller(MLPSearchSpace):
         model.save_weights(self.controller_weights)
 
     def hybrid_control_model(self, controller_input_shape, controller_batch_size):
-        main_input = Input(shape=controller_input_shape, batch_shape=controller_batch_size, name='main_input')
+        main_input = Input(shape=controller_input_shape,  name='main_input')
+        # main_input = Input(shape=controller_input_shape, batch_shape=controller_batch_size, name='main_input')
         x = LSTM(self.controller_lstm_dim, return_sequences=True)(main_input)
         predictor_output = Dense(1, activation='sigmoid', name='predictor_output')(x)
         main_output = Dense(self.controller_classes, activation='softmax', name='main_output')(x)

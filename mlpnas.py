@@ -1,42 +1,46 @@
 import pickle
 import keras.backend as K
 from keras.utils import to_categorical
-from keras.preprocessing.sequence import pad_sequences
+from keras.utils.data_utils import pad_sequences
 
-from CONSTANTS import *
 from controller import Controller
 from mlp_generator import MLPGenerator
-
 from utils import *
 
-
 class MLPNAS(Controller):
-
-    def __init__(self, x, y):
-
+    def __init__(self, x, y, conf):
         self.x = x
         self.y = y
-        self.target_classes = TARGET_CLASSES
-        self.controller_sampling_epochs = CONTROLLER_SAMPLING_EPOCHS
-        self.samples_per_controller_epoch = SAMPLES_PER_CONTROLLER_EPOCH
-        self.controller_train_epochs = CONTROLLER_TRAINING_EPOCHS
-        self.architecture_train_epochs = ARCHITECTURE_TRAINING_EPOCHS
-        self.controller_loss_alpha = CONTROLLER_LOSS_ALPHA
-
+        self.target_classes = conf.TARGET_CLASSES
+        self.controller_sampling_epochs = conf.CONTROLLER_SAMPLING_EPOCHS
+        self.samples_per_controller_epoch = conf.SAMPLES_PER_CONTROLLER_EPOCH
+        self.controller_train_epochs = conf.CONTROLLER_TRAINING_EPOCHS
+        self.architecture_train_epochs = conf.ARCHITECTURE_TRAINING_EPOCHS
+        self.controller_loss_alpha = conf.CONTROLLER_LOSS_ALPHA
         self.data = []
         self.nas_data_log = 'LOGS/nas_data.pkl'
+        self.val_accuracy = conf.TARGET_SCORE
         clean_log()
-
-        super().__init__()
-
-        self.model_generator = MLPGenerator()
-
+        super().__init__(conf)
+        self.model_generator = MLPGenerator(conf)
         self.controller_batch_size = len(self.data)
-        self.controller_input_shape = (1, MAX_ARCHITECTURE_LENGTH - 1)
+        self.controller_input_shape = (1, conf.MAX_ARCHITECTURE_LENGTH - 1)
         if self.use_predictor:
             self.controller_model = self.hybrid_control_model(self.controller_input_shape, self.controller_batch_size)
         else:
             self.controller_model = self.control_model(self.controller_input_shape, self.controller_batch_size)
+
+    def load_from_configuration_folder(self, folder_name):
+        """
+        Loads the configuration that was inferred at training time
+        :param folder_name:     Folder where the configuration resides
+        :return:                Loaded data that is now part defining the object
+        """
+        self.nas_data_log = os.path.join(folder_name, 'nas_data.pkl')
+        with open(self.nas_data_log, 'rb') as f:
+            self.data = pickle.load(f)
+        self.model_generator.load_from_configuration_folder(folder_name)
+        return self.data
 
     def create_architecture(self, sequence):
         if self.target_classes == 2:
@@ -51,18 +55,18 @@ class MLPNAS(Controller):
         return history
 
     def append_model_metrics(self, sequence, history, pred_accuracy=None):
-        if len(history.history['val_accuracy']) == 1:
+        if len(history.history[self.val_accuracy]) == 1:
             if pred_accuracy:
                 self.data.append([sequence,
-                                  history.history['val_accuracy'][0],
+                                  history.history[self.val_accuracy][0],
                                   pred_accuracy])
             else:
                 self.data.append([sequence,
-                                  history.history['val_accuracy'][0]])
-            print('validation accuracy: ', history.history['val_accuracy'][0])
+                                  history.history[self.val_accuracy][0]])
+            print(self.val_accuracy+': ', history.history[self.val_accuracy][0])
         else:
-            val_acc = np.ma.average(history.history['val_accuracy'],
-                                    weights=np.arange(1, len(history.history['val_accuracy']) + 1),
+            val_acc = np.ma.average(history.history[self.val_accuracy],
+                                    weights=np.arange(1, len(history.history[self.val_accuracy]) + 1),
                                     axis=-1)
             if pred_accuracy:
                 self.data.append([sequence,
@@ -71,7 +75,7 @@ class MLPNAS(Controller):
             else:
                 self.data.append([sequence,
                                   val_acc])
-            print('validation accuracy: ', val_acc)
+            print(self.val_accuracy+': ', val_acc)
 
     def prepare_controller_data(self, sequences):
         controller_sequences = pad_sequences(sequences, maxlen=self.max_len, padding='post')
@@ -117,15 +121,40 @@ class MLPNAS(Controller):
                                      len(self.data),
                                      self.controller_train_epochs)
 
+    def load_search_result(self):
+        # Retrieving the sequence information from the dump
+        self.sequences = list(map(lambda x: x[0], self.data))
+        for i, sequence in enumerate(self.sequences):
+            print('Architecture: ', self.decode_sequence(sequence))
+            # Recreating the architecture from the sequence that was dumped
+            model = self.create_architecture(sequence)
+            # Setting up the weights associated to the neural networks
+            self.model_generator.set_model_weights(model)
+
+    def make_testing_predictions(self, x, y):
+        # Retrieving the sequence information from the dump
+        models_result = []
+        self.sequences = list(map(lambda x: x[0], self.data))
+        for i, sequence in enumerate(self.sequences):
+            for_current_model = []
+            print('Architecture: ', self.decode_sequence(sequence))
+            # Recreating the architecture from the sequence that was dumped
+            model = self.create_architecture(sequence)
+            # Setting up the weights associated to the neural networks
+            self.model_generator.set_model_weights(model)
+            for_current_model.append(list(zip(model.predict(x),y)))
+            models_result.append(for_current_model)
+        return models_result\
+
     def search(self):
         for controller_epoch in range(self.controller_sampling_epochs):
             print('------------------------------------------------------------------')
             print('                       CONTROLLER EPOCH: {}'.format(controller_epoch))
             print('------------------------------------------------------------------')
-            sequences = self.sample_architecture_sequences(self.controller_model, self.samples_per_controller_epoch)
+            self.sequences = self.sample_architecture_sequences(self.controller_model, self.samples_per_controller_epoch)
             if self.use_predictor:
-                pred_accuracies = self.get_predicted_accuracies_hybrid_model(self.controller_model, sequences)
-            for i, sequence in enumerate(sequences):
+                pred_accuracies = self.get_predicted_accuracies_hybrid_model(self.controller_model, self.sequences)
+            for i, sequence in enumerate(self.sequences):
                 print('Architecture: ', self.decode_sequence(sequence))
                 model = self.create_architecture(sequence)
                 history = self.train_architecture(model)
@@ -134,7 +163,7 @@ class MLPNAS(Controller):
                 else:
                     self.append_model_metrics(sequence, history)
                 print('------------------------------------------------------')
-            xc, yc, val_acc_target = self.prepare_controller_data(sequences)
+            xc, yc, val_acc_target = self.prepare_controller_data(self.sequences)
             self.train_controller(self.controller_model,
                                   xc,
                                   yc,

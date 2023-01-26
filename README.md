@@ -1,10 +1,14 @@
+Original Article: https://blog.paperspace.com/neural-architecture-search-one-shot-training/
+                  https://blog.paperspace.com/neural-architecture-search-reinforce-gradient/
+Original Codebase: https://github.com/codeaway23/MLPNAS
+
 # Neural Architecture Search for Multi Layer Perceptrons 
 
 Insights drawn from the following papers:
 
-1. [ENAS](https://arxiv.org/abs/1802.03268)
-2. [SeqGAN](https://arxiv.org/abs/1609.05473) 
-3. [NAO](https://arxiv.org/abs/1808.07233)
+1. [ENAS](https://proceedings.mlr.press/v80/pham18a.html)
+2. [SeqGAN](https://www.aaai.org/Conferences/AAAI/2017/PreliminaryPapers/12-Yu-L-14344.pdf) 
+3. [NAO](https://proceedings.neurips.cc/paper/2018/file/933670f1ac8ba969f32989c312faba75-Paper.pdf)
 
 
 ## Features
