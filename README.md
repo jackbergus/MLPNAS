@@ -1,6 +1,4 @@
-Original Article: https://blog.paperspace.com/neural-architecture-search-one-shot-training/
-                  https://blog.paperspace.com/neural-architecture-search-reinforce-gradient/
-Original Codebase: https://github.com/codeaway23/MLPNAS
+
 
 # Neural Architecture Search for Multi Layer Perceptrons 
 
@@ -119,6 +117,7 @@ Architecture [(256, 'relu'), (32, 'tanh'), (3, 'softmax')]
 Validation Accuracy: 0.6632652878761292
 ```
 
+
 ### Without either
 ``` 
 Top 5 Architectures:
@@ -133,3 +132,10 @@ Validation Accuracy: 0.6714285612106323
 Architecture [(128, 'sigmoid'), (256, 'elu'), (3, 'softmax')]
 Validation Accuracy: 0.669276423887773
 ```
+
+# Credits
+
+  *  Original Article: 
+     * https://blog.paperspace.com/neural-architecture-search-one-shot-training/
+     * https://blog.paperspace.com/neural-architecture-search-reinforce-gradient/
+  * Original Codebase: https://github.com/codeaway23/MLPNAS
